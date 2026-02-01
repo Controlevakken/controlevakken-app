@@ -26,14 +26,15 @@ body { font-family:Arial; background:#f3f4f6; }
 
 .alert{
   display:none;
-  background:#f59e0b;
-  color:#000;
   font-weight:900;
   padding:10px;
   border-radius:8px;
   animation: blink 1s infinite;
-  margin-bottom:10px;
+  margin-bottom:8px;
 }
+
+.alert.green{ background:#16a34a; color:#fff; }
+.alert.orange{ background:#f59e0b; color:#000; }
 
 @keyframes blink{
   0%{opacity:1;}
@@ -56,6 +57,12 @@ body { font-family:Arial; background:#f3f4f6; }
 .box{
   height:90px; border-radius:12px; color:white;
   font-size:24px; font-weight:bold; border:none;
+  box-sizing:border-box;
+}
+
+.box.highlight{
+  border:4px solid #facc15;
+  box-shadow:0 0 10px rgba(250,204,21,0.8);
 }
 
 .time{
@@ -80,10 +87,14 @@ button{ padding:10px 14px; font-size:16px; margin:4px; }
 <body>
 <div class="app">
 
-  <div id="queueAlert" class="alert">LANG LEEG – MEER TOEVOER!</div>
+  <div id="queueAlert" class="alert green">LANG LEEG – MEER TOEVOER!</div>
+  <div id="fullAlert" class="alert orange">BIJNA VOL – LET OP AANVOER!</div>
 
   <div>
     <h2>Controlevakken</h2>
+    <div id="longestFree" style="font-weight:bold; margin-bottom:6px;">
+      Langst vrij: —
+    </div>
     <button onclick="addBox()">+ Vak</button>
     <button onclick="removeBox()">- Vak</button>
     <button onclick="resetAll()">Reset vakken</button>
@@ -124,8 +135,9 @@ const db = firebase.firestore();
 const docRef = db.collection("counter").doc("main");
 
 const BASE = 6;
-const GREEN_LIMIT = 10 * 60 * 1000; // 10 minuten
+const GREEN_LIMIT = 10 * 60 * 1000;
 const GREEN_COUNT_LIMIT = 4;
+const FULL_RATIO = 0.8;
 
 let active = [];
 let redSince = [];
@@ -159,16 +171,36 @@ function draw(){
   grid.innerHTML="";
 
   let longGreenCount = 0;
+  let redCount = 0;
+
+  let maxGreenTime = -1;
+  let highlightIndex = -1;
+
+  active.forEach((isRed,i)=>{
+    if(!isRed && greenSince[i]){
+      const t = Date.now() - greenSince[i];
+      if(t > maxGreenTime){
+        maxGreenTime = t;
+        highlightIndex = i;
+      }
+    }
+  });
+
+  document.getElementById("longestFree").innerText =
+    highlightIndex >= 0 ? `Langst vrij: Vak ${highlightIndex+1}` : "Langst vrij: —";
 
   active.forEach((isRed,i)=>{
     const b=document.createElement("button");
     b.className="box";
+    if(i === highlightIndex) b.classList.add("highlight");
+
     b.style.background=isRed?"red":"green";
 
     let label = i+1;
 
     if(isRed && redSince[i]){
       label += `<span class="time">🔴 ${fmt(Date.now() - redSince[i])}</span>`;
+      redCount++;
     }
 
     if(!isRed && greenSince[i]){
@@ -184,6 +216,9 @@ function draw(){
 
   document.getElementById("queueAlert").style.display =
     longGreenCount >= GREEN_COUNT_LIMIT ? "block" : "none";
+
+  document.getElementById("fullAlert").style.display =
+    (redCount / active.length) >= FULL_RATIO ? "block" : "none";
 
   const allRed = active.length>0 && active.every(v=>v);
   document.getElementById("vol").style.display = allRed ? "flex":"none";
