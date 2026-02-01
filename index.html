@@ -245,6 +245,7 @@ function removeBox(){
   buildGrid();
 }
 function resetAll(){
+  if(!confirm("Weet je het zeker?")) return;
   const now=Date.now();
   active=Array(active.length).fill(false);
   redSince=Array(active.length).fill(null);
@@ -254,7 +255,11 @@ function resetAll(){
 
 function changeCounter(a){ docRef.update({ value: firebase.firestore.FieldValue.increment(a) }); }
 function manualChange(a){ changeCounter(a); }
-function resetCounter(){ totalTime=0; totalCount=0; docRef.update({ value:0, totalTime:0, totalCount:0 }); }
+function resetCounter(){
+  if(!confirm("Weet je het zeker?")) return;
+  totalTime=0; totalCount=0;
+  docRef.update({ value:0, totalTime:0, totalCount:0 });
+}
 
 function downloadReport(){
   const end=new Date();
@@ -317,3 +322,4 @@ setInterval(draw,1000);
 </script>
 </body>
 </html>
+
