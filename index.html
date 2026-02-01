@@ -64,6 +64,7 @@ button{ padding:10px 14px; font-size:16px; margin:4px; }
   <div>
     <h2>Controlevakken</h2>
     <button onclick="addBox()">+ Vak</button>
+    <button onclick="removeBox()">- Vak</button>
     <button onclick="resetAll()">Reset vakken</button>
   </div>
 
@@ -73,9 +74,8 @@ button{ padding:10px 14px; font-size:16px; margin:4px; }
   </div>
 
   <div>
-    <p style="margin-top:10px;">
-      <b>Gemiddelde duur controle:</b> <span id="avg">0:00</span>
-    </p>
+    <p><b>Gemiddelde duur controle:</b> <span id="avg">0:00</span></p>
+    <p>Laatst bijgewerkt: <span id="last">—</span></p>
 
     <p><b>automatische teller</b></p>
     <p>Aantal vtg gecontroleerd: <b id="count">0</b></p>
@@ -103,7 +103,8 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const docRef = db.collection("counter").doc("main");
 
-const BASE = 8;
+const BASE = 6;
+
 let active = [];
 let redSince = [];
 let totalTime = 0;
@@ -111,12 +112,18 @@ let totalCount = 0;
 
 function init(){
   docRef.get().then(doc=>{
-    if(!doc.exists || !doc.data().boxes){
+    if(!doc.exists){
       active = Array(BASE).fill(false);
       redSince = Array(BASE).fill(null);
       totalTime = 0;
       totalCount = 0;
-      docRef.set({ value:0, boxes:active, redSince, totalTime, totalCount });
+      docRef.set({
+        value:0,
+        boxes:active,
+        redSince,
+        totalTime,
+        totalCount
+      });
     }
   });
 }
@@ -143,6 +150,8 @@ function draw(){
 function toggle(i){
   const now = Date.now();
 
+  docRef.update({ lastAction: firebase.firestore.FieldValue.serverTimestamp() });
+
   if(!active[i]){
     changeCounter(1);
     redSince[i] = now;
@@ -159,28 +168,42 @@ function toggle(i){
 }
 
 function addBox(){
-  active.push(false);
-  redSince.push(null);
+  active = [...active, false];
+  redSince = [...redSince, null];
+  docRef.set({ boxes:active, redSince }, { merge:true });
+}
+
+function removeBox(){
+  if(active.length <= 1) return;
+  active.pop();
+  redSince.pop();
   docRef.update({ boxes:active, redSince });
 }
 
 function resetAll(){
-  active = Array(BASE).fill(false);
-  redSince = Array(BASE).fill(null);
+  active = Array(active.length).fill(false);
+  redSince = Array(active.length).fill(null);
   docRef.update({ boxes:active, redSince });
 }
 
 function changeCounter(amount){
-  docRef.get().then(doc=>{
-    let v = doc.data().value || 0;
-    v += amount;
-    docRef.update({ value:v });
-    if(amount>0) pop();
+  docRef.update({
+    value: firebase.firestore.FieldValue.increment(amount)
   });
+  if(amount>0) pop();
 }
 
 function manualChange(a){ changeCounter(a); }
-function resetCounter(){ docRef.update({ value:0 }); }
+
+function resetCounter(){
+  totalTime = 0;
+  totalCount = 0;
+  docRef.update({
+    value: 0,
+    totalTime: 0,
+    totalCount: 0
+  });
+}
 
 function pop(){
   const p=document.createElement("div");
@@ -191,24 +214,4 @@ function pop(){
 }
 
 function msToTime(ms){
-  const s = Math.floor(ms/1000);
-  const m = Math.floor(s/60);
-  return `${m}:${(s%60).toString().padStart(2,"0")}`;
-}
-
-docRef.onSnapshot(doc=>{
-  if(doc.exists){
-    const d=doc.data();
-    active = d.boxes || Array(BASE).fill(false);
-    redSince = d.redSince || Array(active.length).fill(null);
-    totalTime = d.totalTime || 0;
-    totalCount = d.totalCount || 0;
-    document.getElementById("count").innerText = d.value || 0;
-    draw();
-  }
-});
-
-init();
-</script>
-</body>
-</html>
+  const s = Math.floor(ms/100
