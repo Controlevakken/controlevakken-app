@@ -29,7 +29,7 @@ body { font-family:Arial; background:#f3f4f6; touch-action: manipulation; }
   position:fixed; inset:0; display:none; align-items:center; justify-content:center;
   font-size:clamp(48px,10vw,96px);
   font-weight:900; color:#c00;
-  background:rgba(255,255,255,.92);
+  background:rgba(255,255,255,0.55);
   pointer-events:none; z-index:9999;
 }
 
@@ -54,7 +54,6 @@ body { font-family:Arial; background:#f3f4f6; touch-action: manipulation; }
   margin:0 auto;
 }
 
-/* Vak */
 .box{
   aspect-ratio:1/1;
   border-radius:14px;
@@ -147,7 +146,7 @@ const docRef = db.collection("counter").doc("main");
 
 const BASE = 6;
 const FULL_RATIO = 0.75;
-const MIN_VALID_RED = 10000;
+const MIN_VALID_RED = 10000; // 10 sec
 
 let active=[], redSince=[], greenSince=[];
 let totalTime=0, totalCount=0;
@@ -210,12 +209,21 @@ function draw(){
 function toggle(i){
   const now=Date.now();
   if(!active[i]){
-    changeCounter(1); redSince[i]=now; greenSince[i]=null;
+    // start rood, NOG GEEN +1
+    redSince[i]=now;
+    greenSince[i]=null;
   } else {
+    // terug naar groen
     if(redSince[i]){
       const dur=now-redSince[i];
-      if(dur>=MIN_VALID_RED){ totalTime+=dur; totalCount++; }
-      redSince[i]=null; greenSince[i]=now;
+      if(dur>=MIN_VALID_RED){
+        // telt nu pas
+        changeCounter(1);
+        totalTime+=dur;
+        totalCount++;
+      }
+      redSince[i]=null;
+      greenSince[i]=now;
     }
   }
   active[i]=!active[i];
@@ -306,7 +314,6 @@ window.addEventListener("load", ()=>{
 });
 
 setInterval(draw,1000);
-init();
 </script>
 </body>
 </html>
