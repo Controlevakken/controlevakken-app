@@ -56,7 +56,7 @@ body { font-family:Arial; background:#f3f4f6; touch-action: manipulation; }
 
 /* Vak */
 .box{
-  aspect-ratio:1/1;              /* altijd vierkant */
+  aspect-ratio:1/1;
   border-radius:14px;
   color:white;
   font-size:clamp(18px,4vw,26px);
@@ -133,7 +133,180 @@ button{ padding:10px 14px; font-size:16px; margin:4px; }
 </div>
 
 <script>
-/* JS blijft gelijk aan de stabiele versie die je al hebt */
+const firebaseConfig = {
+  apiKey: "AIzaSyB5ZIsNVDFoQ2rtb7nysrs-vSFikz-AvbM",
+  authDomain: "controlevakken-teller.firebaseapp.com",
+  projectId: "controlevakken-teller",
+  storageBucket: "controlevakken-teller.firebasestorage.app",
+  messagingSenderId: "507012510405",
+  appId: "1:507012510405:web:88d4817f6658e94feb76ac"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const docRef = db.collection("counter").doc("main");
+
+const BASE = 6;
+const FULL_RATIO = 0.75;
+const MIN_VALID_RED = 10000;
+
+let active=[], redSince=[], greenSince=[];
+let totalTime=0, totalCount=0;
+let startTime = Date.now();
+let adviceHistory = [];
+
+function buildGrid(){
+  const grid=document.getElementById("grid");
+  grid.innerHTML="";
+  active.forEach((_,i)=>{
+    const b=document.createElement("div");
+    b.className="box";
+    b.setAttribute("role","button");
+    b.addEventListener("click",()=>toggle(i));
+    grid.appendChild(b);
+  });
+}
+
+function draw(){
+  let redCount=0, maxGreen=-1, hi=-1;
+
+  active.forEach((isRed,i)=>{
+    if(isRed) redCount++;
+    if(!isRed && greenSince[i]){
+      const t=Date.now()-greenSince[i];
+      if(t>maxGreen){ maxGreen=t; hi=i; }
+    }
+  });
+
+  const newAdvice = (redCount/active.length>=FULL_RATIO) ? "MINDER TOEVOER" : "MEER TOEVOER";
+  const adviceBox=document.getElementById("advice");
+  if(adviceBox.innerText !== newAdvice){
+    adviceHistory.push(`${new Date().toLocaleTimeString()} → ${newAdvice}`);
+  }
+  adviceBox.className="advice "+(newAdvice==="MINDER TOEVOER"?"less":"more");
+  adviceBox.innerText=newAdvice;
+
+  document.getElementById("longestFree").innerText =
+    hi>=0 ? `Langst vrij: Vak ${hi+1}` : "Langst vrij: —";
+
+  const boxes=document.querySelectorAll(".box");
+  boxes.forEach((b,i)=>{
+    const isRed=active[i];
+    b.style.background=isRed?"red":"green";
+    b.classList.toggle("highlight",i===hi);
+
+    let label=i+1;
+    if(isRed && redSince[i]) label+=`<span class="time">🔴 ${fmt(Date.now()-redSince[i])}</span>`;
+    if(!isRed && greenSince[i]) label+=`<span class="time">🟢 ${fmt(Date.now()-greenSince[i])}</span>`;
+    b.innerHTML=label;
+  });
+
+  document.getElementById("vol").style.display =
+    (active.length>0 && active.every(v=>v)) ? "flex":"none";
+
+  const avg = totalCount ? Math.floor(totalTime/totalCount) : 0;
+  document.getElementById("avg").innerText=fmt(avg);
+}
+
+function toggle(i){
+  const now=Date.now();
+  if(!active[i]){
+    changeCounter(1); redSince[i]=now; greenSince[i]=null;
+  } else {
+    if(redSince[i]){
+      const dur=now-redSince[i];
+      if(dur>=MIN_VALID_RED){ totalTime+=dur; totalCount++; }
+      redSince[i]=null; greenSince[i]=now;
+    }
+  }
+  active[i]=!active[i];
+  docRef.update({ boxes:active, redSince, greenSince, totalTime, totalCount });
+}
+
+function addBox(){
+  const now=Date.now();
+  active=[...active,false];
+  redSince=[...redSince,null];
+  greenSince=[...greenSince,now];
+  docRef.set({ boxes:active, redSince, greenSince },{merge:true});
+  buildGrid();
+}
+function removeBox(){
+  if(active.length<=1)return;
+  active.pop(); redSince.pop(); greenSince.pop();
+  docRef.update({ boxes:active, redSince, greenSince });
+  buildGrid();
+}
+function resetAll(){
+  const now=Date.now();
+  active=Array(active.length).fill(false);
+  redSince=Array(active.length).fill(null);
+  greenSince=Array(active.length).fill(now);
+  docRef.update({ boxes:active, redSince, greenSince });
+}
+
+function changeCounter(a){ docRef.update({ value: firebase.firestore.FieldValue.increment(a) }); }
+function manualChange(a){ changeCounter(a); }
+function resetCounter(){ totalTime=0; totalCount=0; docRef.update({ value:0, totalTime:0, totalCount:0 }); }
+
+function downloadReport(){
+  const end=new Date();
+  const avg = totalCount ? fmt(Math.floor(totalTime/totalCount)) : "0:00";
+  let longestRed="0:00", longestGreen="0:00";
+  active.forEach((isRed,i)=>{
+    if(isRed && redSince[i]) longestRed = maxFmt(longestRed, fmt(Date.now()-redSince[i]));
+    if(!isRed && greenSince[i]) longestGreen = maxFmt(longestGreen, fmt(Date.now()-greenSince[i]));
+  });
+
+  const txt =
+`LOGBOEK VERKEERSCONTROLE
+Start: ${new Date(startTime).toLocaleString()}
+Einde: ${end.toLocaleString()}
+
+Aantal vakken: ${active.length}
+Totaal voertuigen: ${document.getElementById("count").innerText}
+Gemiddelde tijd: ${avg}
+Langste rood: ${longestRed}
+Langste groen: ${longestGreen}
+
+Adviesgeschiedenis:
+${adviceHistory.join("\n") || "—"}`;
+
+  const blob=new Blob([txt],{type:"text/plain"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`logboek_${end.toISOString().slice(0,19).replace(/[:T]/g,"-")}.txt`;
+  a.click();
+}
+
+function fmt(ms){
+  const s=Math.floor(ms/1000), m=Math.floor(s/60);
+  return `${m}:${(s%60).toString().padStart(2,"0")}`;
+}
+function maxFmt(a,b){
+  const toSec=x=>{const[p,q]=x.split(":").map(Number);return p*60+q;}
+  return toSec(b)>toSec(a)?b:a;
+}
+
+docRef.onSnapshot(doc=>{
+  if(doc.exists){
+    const d=doc.data();
+    active=d.boxes||Array(BASE).fill(false);
+    redSince=d.redSince||Array(active.length).fill(null);
+    greenSince=d.greenSince||Array(active.length).fill(Date.now());
+    totalTime=d.totalTime||0; totalCount=d.totalCount||0;
+    document.getElementById("count").innerText=d.value||0;
+    buildGrid();
+    draw();
+  }
+});
+
+window.addEventListener("load", ()=>{
+  buildGrid();
+  draw();
+});
+
+setInterval(draw,1000);
+init();
 </script>
 </body>
 </html>
