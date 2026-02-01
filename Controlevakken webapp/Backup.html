@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Controlevakken</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+  html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    font-family: Arial;
+    background: #f3f4f6;
+  }
+  .app {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px;
+    box-sizing: border-box;
+    text-align: center;
+  }
+  .middle {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  .box {
+    height: 90px;
+    border-radius: 12px;
+    color: white;
+    font-size: 24px;
+    font-weight: bold;
+    border: none;
+  }
+  button {
+    padding: 10px 14px;
+    font-size: 16px;
+    margin: 4px;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="app">
+  <div>
+    <h2>Controlevakken</h2>
+    <button onclick="addBox()">+ Vak</button>
+    <button onclick="resetAll()">Reset vakken</button>
+  </div>
+
+  <div class="middle">
+    <div id="grid" class="grid"></div>
+  </div>
+
+  <div>
+    <p>Aantal vtg gecontroleerd: <b id="count">0</b></p>
+
+    <p><b>Handmatige teller</b></p>
+    <button onclick="manualChange(1)">+</button>
+    <button onclick="manualChange(-1)">-</button>
+
+    <div style="margin-top:10px;">
+      <button onclick="resetCounter()">Reset teller</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyB5ZIsNVDFoQ2rtb7nysrs-vSFikz-AvbM",
+    authDomain: "controlevakken-teller.firebaseapp.com",
+    projectId: "controlevakken-teller",
+    storageBucket: "controlevakken-teller.firebasestorage.app",
+    messagingSenderId: "507012510405",
+    appId: "1:507012510405:web:88d4817f6658e94feb76ac"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const docRef = db.collection("counter").doc("main");
+
+  let BASE = 8;
+  let active = Array(BASE).fill(false);
+
+  function draw() {
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
+    active.forEach((isRed, i) => {
+      const btn = document.createElement("button");
+      btn.className = "box";
+      btn.style.background = isRed ? "red" : "green";
+      btn.innerText = i+1;
+      btn.onclick = () => toggle(i);
+      grid.appendChild(btn);
+    });
+  }
+
+  function toggle(i) {
+    if (!active[i]) changeCounter(1);
+    active[i] = !active[i];
+    draw();
+  }
+
+  function addBox() {
+    active.push(false);
+    draw();
+  }
+
+  function resetAll() {
+    active = Array(BASE).fill(false);
+    draw();
+  }
+
+  function changeCounter(amount) {
+    docRef.get().then(doc => {
+      let val = doc.exists ? doc.data().value : 0;
+      val += amount;
+      docRef.set({ value: val });
+    });
+  }
+
+  function manualChange(amount) {
+    changeCounter(amount);
+  }
+
+  function resetCounter() {
+    docRef.set({ value: 0 });
+  }
+
+  // Live sync
+  docRef.onSnapshot(doc => {
+    if (doc.exists) {
+      document.getElementById("count").innerText = doc.data().value;
+    }
+  });
+
+  draw();
+</script>
+
+</body>
+</html>
