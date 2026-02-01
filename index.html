@@ -214,4 +214,30 @@ function pop(){
 }
 
 function msToTime(ms){
-  const s = Math.floor(ms/100
+  const s = Math.floor(ms/1000);
+  const m = Math.floor(s/60);
+  return `${m}:${(s%60).toString().padStart(2,"0")}`;
+}
+
+docRef.onSnapshot(doc=>{
+  if(doc.exists){
+    const d=doc.data();
+    active = d.boxes || Array(BASE).fill(false);
+    redSince = d.redSince || Array(active.length).fill(null);
+    totalTime = d.totalTime || 0;
+    totalCount = d.totalCount || 0;
+    document.getElementById("count").innerText = d.value || 0;
+
+    if(d.lastAction){
+      document.getElementById("last").innerText =
+        d.lastAction.toDate().toLocaleTimeString();
+    }
+
+    draw();
+  }
+});
+
+init();
+</script>
+</body>
+</html>
