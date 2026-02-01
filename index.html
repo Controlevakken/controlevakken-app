@@ -122,7 +122,7 @@ button{ padding:10px 14px; font-size:16px; margin:4px; }
 </div>
 
 <script>
-const firebaseConfig = { /* ongewijzigd */ 
+const firebaseConfig = {
   apiKey: "AIzaSyB5ZIsNVDFoQ2rtb7nysrs-vSFikz-AvbM",
   authDomain: "controlevakken-teller.firebaseapp.com",
   projectId: "controlevakken-teller",
@@ -135,7 +135,7 @@ const db = firebase.firestore();
 const docRef = db.collection("counter").doc("main");
 
 const BASE = 6;
-const FULL_RATIO = 0.8;
+const FULL_RATIO = 0.75;
 
 let active = [];
 let redSince = [];
@@ -183,7 +183,6 @@ function draw(){
     }
   });
 
-  // advies
   const adviceBox = document.getElementById("advice");
   if(redCount / active.length >= FULL_RATIO){
     adviceBox.className="advice less";
@@ -209,17 +208,25 @@ function draw(){
 
     b.innerHTML=label;
 
-    // 2-vinger tap support
+    // echte multi-touch
+    let touchCount=0;
     b.addEventListener("touchstart",e=>{
-      if(e.touches.length===2){
+      touchCount=e.touches.length;
+    });
+    b.addEventListener("touchend",e=>{
+      if(touchCount>=2){
         toggle(i);
         e.preventDefault();
       }
+      touchCount=0;
     });
 
     b.onclick=()=>toggle(i);
     grid.appendChild(b);
   });
+
+  const allRed = active.length>0 && active.every(v=>v);
+  document.getElementById("vol").style.display = allRed ? "flex":"none";
 
   const avg = totalCount ? Math.floor(totalTime/totalCount) : 0;
   document.getElementById("avg").innerText=msToTime(avg);
