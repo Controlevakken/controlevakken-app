@@ -5,6 +5,10 @@
 <title>Controlevakken</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -37,6 +41,13 @@ body { font-family:Arial; background:#f3f4f6; }
   font-size:24px; font-weight:bold; border:none;
 }
 
+.time{
+  font-size:13px;
+  font-weight:normal;
+  display:block;
+  margin-top:2px;
+}
+
 button{ padding:10px 14px; font-size:16px; margin:4px; }
 
 #vol{
@@ -45,16 +56,6 @@ button{ padding:10px 14px; font-size:16px; margin:4px; }
   font-size:64px; font-weight:900; color:#c00;
   background:rgba(255,255,255,.8);
   pointer-events:none;
-}
-
-.plus{
-  position:fixed; right:20px; bottom:120px;
-  font-size:28px; color:#16a34a; font-weight:900;
-  animation: pop 600ms ease-out forwards;
-}
-@keyframes pop{
-  from{ transform:translateY(10px); opacity:0; }
-  to{ transform:translateY(-20px); opacity:1; }
 }
 </style>
 </head>
@@ -75,14 +76,9 @@ button{ padding:10px 14px; font-size:16px; margin:4px; }
 
   <div>
     <p><b>Gemiddelde duur controle:</b> <span id="avg">0:00</span></p>
-    <p>Laatst bijgewerkt: <span id="last">—</span></p>
 
     <p><b>automatische teller</b></p>
     <p>Aantal vtg gecontroleerd: <b id="count">0</b></p>
-
-    <p><b>handmatige teller</b></p>
-    <button onclick="manualChange(1)">+</button>
-    <button onclick="manualChange(-1)">-</button>
 
     <div style="margin-top:10px;">
       <button onclick="resetCounter()">Reset teller</button>
@@ -107,20 +103,24 @@ const BASE = 6;
 
 let active = [];
 let redSince = [];
+let greenSince = [];
 let totalTime = 0;
 let totalCount = 0;
 
 function init(){
   docRef.get().then(doc=>{
     if(!doc.exists){
+      const now = Date.now();
       active = Array(BASE).fill(false);
       redSince = Array(BASE).fill(null);
+      greenSince = Array(BASE).fill(now);
       totalTime = 0;
       totalCount = 0;
       docRef.set({
         value:0,
         boxes:active,
         redSince,
+        greenSince,
         totalTime,
         totalCount
       });
@@ -131,11 +131,23 @@ function init(){
 function draw(){
   const grid=document.getElementById("grid");
   grid.innerHTML="";
+
   active.forEach((isRed,i)=>{
     const b=document.createElement("button");
     b.className="box";
     b.style.background=isRed?"red":"green";
-    b.innerText=i+1;
+
+    let label = i+1;
+
+    if(isRed && redSince[i]){
+      label += `<span class="time">🔴 ${fmt(Date.now() - redSince[i])}</span>`;
+    }
+
+    if(!isRed && greenSince[i]){
+      label += `<span class="time">🟢 ${fmt(Date.now() - greenSince[i])}</span>`;
+    }
+
+    b.innerHTML = label;
     b.onclick=()=>toggle(i);
     grid.appendChild(b);
   });
@@ -150,50 +162,52 @@ function draw(){
 function toggle(i){
   const now = Date.now();
 
-  docRef.update({ lastAction: firebase.firestore.FieldValue.serverTimestamp() });
-
   if(!active[i]){
     changeCounter(1);
     redSince[i] = now;
+    greenSince[i] = null;
   } else {
     if(redSince[i]){
       totalTime += now - redSince[i];
       totalCount++;
       redSince[i] = null;
+      greenSince[i] = now;
     }
   }
 
   active[i] = !active[i];
-  docRef.update({ boxes:active, redSince, totalTime, totalCount });
+  docRef.update({ boxes:active, redSince, greenSince, totalTime, totalCount });
 }
 
 function addBox(){
+  const now = Date.now();
   active = [...active, false];
   redSince = [...redSince, null];
-  docRef.set({ boxes:active, redSince }, { merge:true });
+  greenSince = [...greenSince, now];
+  docRef.set({ boxes:active, redSince, greenSince }, { merge:true });
 }
 
 function removeBox(){
   if(active.length <= 1) return;
   active.pop();
   redSince.pop();
-  docRef.update({ boxes:active, redSince });
+  greenSince.pop();
+  docRef.update({ boxes:active, redSince, greenSince });
 }
 
 function resetAll(){
+  const now = Date.now();
   active = Array(active.length).fill(false);
   redSince = Array(active.length).fill(null);
-  docRef.update({ boxes:active, redSince });
+  greenSince = Array(active.length).fill(now);
+  docRef.update({ boxes:active, redSince, greenSince });
 }
 
 function changeCounter(amount){
   docRef.update({
     value: firebase.firestore.FieldValue.increment(amount)
   });
-  if(amount>0) pop();
 }
-
-function manualChange(a){ changeCounter(a); }
 
 function resetCounter(){
   totalTime = 0;
@@ -205,12 +219,10 @@ function resetCounter(){
   });
 }
 
-function pop(){
-  const p=document.createElement("div");
-  p.className="plus";
-  p.innerText="+1";
-  document.body.appendChild(p);
-  setTimeout(()=>p.remove(),600);
+function fmt(ms){
+  const s = Math.floor(ms/1000);
+  const m = Math.floor(s/60);
+  return `${m}:${(s%60).toString().padStart(2,"0")}`;
 }
 
 function msToTime(ms){
@@ -224,19 +236,15 @@ docRef.onSnapshot(doc=>{
     const d=doc.data();
     active = d.boxes || Array(BASE).fill(false);
     redSince = d.redSince || Array(active.length).fill(null);
+    greenSince = d.greenSince || Array(active.length).fill(Date.now());
     totalTime = d.totalTime || 0;
     totalCount = d.totalCount || 0;
     document.getElementById("count").innerText = d.value || 0;
-
-    if(d.lastAction){
-      document.getElementById("last").innerText =
-        d.lastAction.toDate().toLocaleTimeString();
-    }
-
     draw();
   }
 });
 
+setInterval(draw, 1000);
 init();
 </script>
 </body>
