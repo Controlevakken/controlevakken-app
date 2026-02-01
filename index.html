@@ -80,6 +80,10 @@ button{ padding:10px 14px; font-size:16px; margin:4px; }
     <p><b>automatische teller</b></p>
     <p>Aantal vtg gecontroleerd: <b id="count">0</b></p>
 
+    <p><b>handmatige teller</b></p>
+    <button onclick="manualChange(1)">+</button>
+    <button onclick="manualChange(-1)">-</button>
+
     <div style="margin-top:10px;">
       <button onclick="resetCounter()">Reset teller</button>
     </div>
@@ -209,6 +213,8 @@ function changeCounter(amount){
   });
 }
 
+function manualChange(a){ changeCounter(a); }
+
 function resetCounter(){
   totalTime = 0;
   totalCount = 0;
@@ -225,11 +231,7 @@ function fmt(ms){
   return `${m}:${(s%60).toString().padStart(2,"0")}`;
 }
 
-function msToTime(ms){
-  const s = Math.floor(ms/1000);
-  const m = Math.floor(s/60);
-  return `${m}:${(s%60).toString().padStart(2,"0")}`;
-}
+function msToTime(ms){ return fmt(ms); }
 
 docRef.onSnapshot(doc=>{
   if(doc.exists){
