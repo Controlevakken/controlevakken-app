@@ -24,6 +24,23 @@ body { font-family:Arial; background:#f3f4f6; }
   text-align:center;
 }
 
+.alert{
+  display:none;
+  background:#f59e0b;
+  color:#000;
+  font-weight:900;
+  padding:10px;
+  border-radius:8px;
+  animation: blink 1s infinite;
+  margin-bottom:10px;
+}
+
+@keyframes blink{
+  0%{opacity:1;}
+  50%{opacity:0.3;}
+  100%{opacity:1;}
+}
+
 .middle{ flex-grow:1; display:flex; align-items:center; justify-content:center; position:relative; }
 
 .grid{
@@ -62,6 +79,9 @@ button{ padding:10px 14px; font-size:16px; margin:4px; }
 
 <body>
 <div class="app">
+
+  <div id="queueAlert" class="alert">LANG LEEG – MEER TOEVOER!</div>
+
   <div>
     <h2>Controlevakken</h2>
     <button onclick="addBox()">+ Vak</button>
@@ -104,6 +124,8 @@ const db = firebase.firestore();
 const docRef = db.collection("counter").doc("main");
 
 const BASE = 6;
+const GREEN_LIMIT = 10 * 60 * 1000; // 10 minuten
+const GREEN_COUNT_LIMIT = 4;
 
 let active = [];
 let redSince = [];
@@ -136,6 +158,8 @@ function draw(){
   const grid=document.getElementById("grid");
   grid.innerHTML="";
 
+  let longGreenCount = 0;
+
   active.forEach((isRed,i)=>{
     const b=document.createElement("button");
     b.className="box";
@@ -148,13 +172,18 @@ function draw(){
     }
 
     if(!isRed && greenSince[i]){
-      label += `<span class="time">🟢 ${fmt(Date.now() - greenSince[i])}</span>`;
+      const gtime = Date.now() - greenSince[i];
+      label += `<span class="time">🟢 ${fmt(gtime)}</span>`;
+      if(gtime > GREEN_LIMIT) longGreenCount++;
     }
 
     b.innerHTML = label;
     b.onclick=()=>toggle(i);
     grid.appendChild(b);
   });
+
+  document.getElementById("queueAlert").style.display =
+    longGreenCount >= GREEN_COUNT_LIMIT ? "block" : "none";
 
   const allRed = active.length>0 && active.every(v=>v);
   document.getElementById("vol").style.display = allRed ? "flex":"none";
