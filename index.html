@@ -24,47 +24,28 @@ body { font-family:Arial; background:#f3f4f6; touch-action: manipulation; }
   text-align:center;
 }
 
-/* === VOORGROND VOL === */
+/* VOL op voorgrond */
 #vol{
-  position:fixed;
-  inset:0;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  font-size:64px;
-  font-weight:900;
-  color:#c00;
+  position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+  font-size:64px; font-weight:900; color:#c00;
   background:rgba(255,255,255,.92);
-  pointer-events:none;
-  z-index:9999;
+  pointer-events:none; z-index:9999;
 }
 
 .advice{
-  font-weight:900;
-  padding:12px;
-  border-radius:10px;
-  margin-bottom:10px;
-  font-size:20px;
+  font-weight:900; padding:12px; border-radius:10px; margin-bottom:10px; font-size:20px;
 }
 .advice.more{ background:#16a34a; color:#fff; }
 .advice.less{ background:#dc2626; color:#fff; }
 
 .middle{ flex-grow:1; display:flex; align-items:center; justify-content:center; }
-
 .grid{
-  display:grid;
-  grid-template-rows: repeat(4, auto);
-  grid-auto-flow: column;
-  gap:12px;
-  width:100%;
-  max-width:400px;
-  margin:0 auto;
+  display:grid; grid-template-rows: repeat(4, auto); grid-auto-flow: column;
+  gap:12px; width:100%; max-width:400px; margin:0 auto;
 }
-
 .box{
-  height:90px; border-radius:12px; color:white;
-  font-size:24px; font-weight:bold; border:none;
-  box-sizing:border-box; position:relative;
+  height:90px; border-radius:12px; color:white; font-size:24px; font-weight:bold;
+  border:none; box-sizing:border-box; position:relative;
 }
 .box.highlight{
   border:6px solid #facc15;
@@ -76,7 +57,6 @@ body { font-family:Arial; background:#f3f4f6; touch-action: manipulation; }
   50%{box-shadow:0 0 25px rgba(250,204,21,1);}
   100%{box-shadow:0 0 10px rgba(250,204,21,.6);}
 }
-
 .time{ font-size:13px; font-weight:normal; display:block; margin-top:2px; }
 button{ padding:10px 14px; font-size:16px; margin:4px; }
 </style>
@@ -91,9 +71,7 @@ button{ padding:10px 14px; font-size:16px; margin:4px; }
 
   <div>
     <h2>Controlevakken</h2>
-    <div id="longestFree" style="font-weight:bold; margin-bottom:6px;">
-      Langst vrij: —
-    </div>
+    <div id="longestFree" style="font-weight:bold; margin-bottom:6px;">Langst vrij: —</div>
     <button onclick="addBox()">+ Vak</button>
     <button onclick="removeBox()">- Vak</button>
     <button onclick="resetAll()">Reset vakken</button>
@@ -115,7 +93,7 @@ button{ padding:10px 14px; font-size:16px; margin:4px; }
 
     <div style="margin-top:10px;">
       <button onclick="resetCounter()">Reset teller</button>
-      <button onclick="copyReport()">Kopieer eindrapport</button>
+      <button onclick="downloadReport()">Download eindrapport</button>
     </div>
   </div>
 </div>
@@ -135,21 +113,20 @@ const docRef = db.collection("counter").doc("main");
 
 const BASE = 6;
 const FULL_RATIO = 0.75;
-const MIN_VALID_RED = 10000; // 10 sec drempel
+const MIN_VALID_RED = 10000;
 
-let active = [];
-let redSince = [];
-let greenSince = [];
-let totalTime = 0;
-let totalCount = 0;
+let active=[], redSince=[], greenSince=[];
+let totalTime=0, totalCount=0;
+let startTime = Date.now();
+let adviceHistory = [];
 
 function init(){
   docRef.get().then(doc=>{
     if(!doc.exists){
-      const now = Date.now();
-      active = Array(BASE).fill(false);
-      redSince = Array(BASE).fill(null);
-      greenSince = Array(BASE).fill(now);
+      const now=Date.now();
+      active=Array(BASE).fill(false);
+      redSince=Array(BASE).fill(null);
+      greenSince=Array(BASE).fill(now);
       docRef.set({ value:0, boxes:active, redSince, greenSince, totalTime:0, totalCount:0 });
     }
   });
@@ -159,42 +136,40 @@ function draw(){
   const grid=document.getElementById("grid");
   grid.innerHTML="";
 
-  let redCount=0, maxGreenTime=-1, highlightIndex=-1;
-
+  let redCount=0, maxGreen=-1, hi=-1;
   active.forEach((isRed,i)=>{
     if(isRed) redCount++;
     if(!isRed && greenSince[i]){
       const t=Date.now()-greenSince[i];
-      if(t>maxGreenTime){ maxGreenTime=t; highlightIndex=i; }
+      if(t>maxGreen){ maxGreen=t; hi=i; }
     }
   });
 
   const adviceBox=document.getElementById("advice");
-  if(redCount/active.length>=FULL_RATIO){
-    adviceBox.className="advice less"; adviceBox.innerText="MINDER TOEVOER";
-  } else {
-    adviceBox.className="advice more"; adviceBox.innerText="MEER TOEVOER";
+  const newAdvice = (redCount/active.length>=FULL_RATIO) ? "MINDER TOEVOER" : "MEER TOEVOER";
+  if(adviceBox.innerText !== newAdvice){
+    adviceHistory.push(`${new Date().toLocaleTimeString()} → ${newAdvice}`);
   }
+  if(newAdvice==="MINDER TOEVOER"){ adviceBox.className="advice less"; }
+  else { adviceBox.className="advice more"; }
+  adviceBox.innerText=newAdvice;
 
   document.getElementById("longestFree").innerText =
-    highlightIndex>=0 ? `Langst vrij: Vak ${highlightIndex+1}` : "Langst vrij: —";
+    hi>=0 ? `Langst vrij: Vak ${hi+1}` : "Langst vrij: —";
 
   active.forEach((isRed,i)=>{
     const b=document.createElement("button");
-    b.className="box";
-    if(i===highlightIndex) b.classList.add("highlight");
+    b.className="box"; if(i===hi) b.classList.add("highlight");
     b.style.background=isRed?"red":"green";
-
     let label=i+1;
     if(isRed && redSince[i]) label+=`<span class="time">🔴 ${fmt(Date.now()-redSince[i])}</span>`;
     if(!isRed && greenSince[i]) label+=`<span class="time">🟢 ${fmt(Date.now()-greenSince[i])}</span>`;
-    b.innerHTML=label;
-    b.onclick=()=>toggle(i);
+    b.innerHTML=label; b.onclick=()=>toggle(i);
     grid.appendChild(b);
   });
 
-  const allRed = active.length>0 && active.every(v=>v);
-  document.getElementById("vol").style.display = allRed ? "flex":"none";
+  document.getElementById("vol").style.display =
+    (active.length>0 && active.every(v=>v)) ? "flex":"none";
 
   const avg = totalCount ? Math.floor(totalTime/totalCount) : 0;
   document.getElementById("avg").innerText=fmt(avg);
@@ -203,11 +178,10 @@ function draw(){
 function toggle(i){
   const now=Date.now();
   if(!active[i]){
-    changeCounter(1);
-    redSince[i]=now; greenSince[i]=null;
+    changeCounter(1); redSince[i]=now; greenSince[i]=null;
   } else {
     if(redSince[i]){
-      const dur = now-redSince[i];
+      const dur=now-redSince[i];
       if(dur>=MIN_VALID_RED){ totalTime+=dur; totalCount++; }
       redSince[i]=null; greenSince[i]=now;
     }
@@ -216,13 +190,11 @@ function toggle(i){
   docRef.update({ boxes:active, redSince, greenSince, totalTime, totalCount });
 }
 
-function addBox(){
-  const now=Date.now();
+function addBox(){ const now=Date.now();
   active=[...active,false]; redSince=[...redSince,null]; greenSince=[...greenSince,now];
   docRef.set({ boxes:active, redSince, greenSince },{merge:true});
 }
-function removeBox(){
-  if(active.length<=1)return;
+function removeBox(){ if(active.length<=1)return;
   active.pop(); redSince.pop(); greenSince.pop();
   docRef.update({ boxes:active, redSince, greenSince });
 }
@@ -233,32 +205,47 @@ function resetAll(){
   greenSince=Array(active.length).fill(now);
   docRef.update({ boxes:active, redSince, greenSince });
 }
-
-function changeCounter(a){
-  docRef.update({ value: firebase.firestore.FieldValue.increment(a) });
-}
+function changeCounter(a){ docRef.update({ value: firebase.firestore.FieldValue.increment(a) }); }
 function manualChange(a){ changeCounter(a); }
+function resetCounter(){ totalTime=0; totalCount=0; docRef.update({ value:0, totalTime:0, totalCount:0 }); }
 
-function resetCounter(){
-  totalTime=0; totalCount=0;
-  docRef.update({ value:0, totalTime:0, totalCount:0 });
-}
-
-function copyReport(){
+function downloadReport(){
+  const end=new Date();
   const avg = totalCount ? fmt(Math.floor(totalTime/totalCount)) : "0:00";
-  const txt = 
-`Rapport controle
-Totaal voertuigen: ${document.getElementById("count").innerText}
-Gemiddelde tijd: ${avg}
+  let longestRed="0:00", longestGreen="0:00";
+  active.forEach((isRed,i)=>{
+    if(isRed && redSince[i]) longestRed = maxFmt(longestRed, fmt(Date.now()-redSince[i]));
+    if(!isRed && greenSince[i]) longestGreen = maxFmt(longestGreen, fmt(Date.now()-greenSince[i]));
+  });
+
+  const txt =
+`LOGBOEK VERKEERSCONTROLE
+Start: ${new Date(startTime).toLocaleString()}
+Einde: ${end.toLocaleString()}
+
 Aantal vakken: ${active.length}
-Tijdstip: ${new Date().toLocaleString()}`;
-  navigator.clipboard.writeText(txt);
-  alert("Rapport gekopieerd");
+Totaal voertuigen: ${document.getElementById("count").innerText}
+Gemiddelde controletijd: ${avg}
+Langste rood: ${longestRed}
+Langste groen: ${longestGreen}
+
+Adviesgeschiedenis:
+${adviceHistory.join("\n") || "—"}`;
+
+  const blob=new Blob([txt],{type:"text/plain"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`logboek_${end.toISOString().slice(0,19).replace(/[:T]/g,"-")}.txt`;
+  a.click();
 }
 
 function fmt(ms){
   const s=Math.floor(ms/1000), m=Math.floor(s/60);
   return `${m}:${(s%60).toString().padStart(2,"0")}`;
+}
+function maxFmt(a,b){
+  const toSec=x=>{const[p,q]=x.split(":").map(Number);return p*60+q;}
+  return toSec(b)>toSec(a)?b:a;
 }
 
 docRef.onSnapshot(doc=>{
@@ -272,7 +259,6 @@ docRef.onSnapshot(doc=>{
     draw();
   }
 });
-
 setInterval(draw,1000);
 init();
 </script>
