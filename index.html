@@ -104,9 +104,6 @@ button{ padding:10px 14px; font-size:16px; margin:4px; }
 </div>
 
 <script>
-// extra scroll-lock (optioneel maar stabiel op iOS)
-document.addEventListener("touchmove",e=>e.preventDefault(),{passive:false});
-
 const firebaseConfig = {
   apiKey: "AIzaSyB5ZIsNVDFoQ2rtb7nysrs-vSFikz-AvbM",
   authDomain: "controlevakken-teller.firebaseapp.com",
@@ -140,11 +137,21 @@ function init(){
   });
 }
 
-function draw(){
+function buildGrid(){
   const grid=document.getElementById("grid");
   grid.innerHTML="";
+  active.forEach((_,i)=>{
+    const b=document.createElement("div");
+    b.className="box";
+    b.setAttribute("role","button");
+    b.addEventListener("click",()=>toggle(i));
+    grid.appendChild(b);
+  });
+}
 
+function draw(){
   let redCount=0, maxGreen=-1, hi=-1;
+
   active.forEach((isRed,i)=>{
     if(isRed) redCount++;
     if(!isRed && greenSince[i]){
@@ -153,31 +160,27 @@ function draw(){
     }
   });
 
-  const adviceBox=document.getElementById("advice");
   const newAdvice = (redCount/active.length>=FULL_RATIO) ? "MINDER TOEVOER" : "MEER TOEVOER";
+  const adviceBox=document.getElementById("advice");
   if(adviceBox.innerText !== newAdvice){
     adviceHistory.push(`${new Date().toLocaleTimeString()} → ${newAdvice}`);
   }
-  adviceBox.className = "advice " + (newAdvice==="MINDER TOEVOER" ? "less":"more");
+  adviceBox.className="advice "+(newAdvice==="MINDER TOEVOER"?"less":"more");
   adviceBox.innerText=newAdvice;
 
   document.getElementById("longestFree").innerText =
     hi>=0 ? `Langst vrij: Vak ${hi+1}` : "Langst vrij: —";
 
-  active.forEach((isRed,i)=>{
-    const b=document.createElement("div");   // <-- GEEN BUTTON
-    b.className="box";
-    b.setAttribute("role","button");
-    if(i===hi) b.classList.add("highlight");
+  const boxes=document.querySelectorAll(".box");
+  boxes.forEach((b,i)=>{
+    const isRed=active[i];
     b.style.background=isRed?"red":"green";
+    b.classList.toggle("highlight",i===hi);
 
     let label=i+1;
     if(isRed && redSince[i]) label+=`<span class="time">🔴 ${fmt(Date.now()-redSince[i])}</span>`;
     if(!isRed && greenSince[i]) label+=`<span class="time">🟢 ${fmt(Date.now()-greenSince[i])}</span>`;
     b.innerHTML=label;
-
-    b.addEventListener("click",()=>toggle(i)); // <-- geen focus
-    grid.appendChild(b);
   });
 
   document.getElementById("vol").style.display =
@@ -202,13 +205,19 @@ function toggle(i){
   docRef.update({ boxes:active, redSince, greenSince, totalTime, totalCount });
 }
 
-function addBox(){ const now=Date.now();
-  active=[...active,false]; redSince=[...redSince,null]; greenSince=[...greenSince,now];
+function addBox(){
+  const now=Date.now();
+  active=[...active,false];
+  redSince=[...redSince,null];
+  greenSince=[...greenSince,now];
   docRef.set({ boxes:active, redSince, greenSince },{merge:true});
+  buildGrid();
 }
-function removeBox(){ if(active.length<=1)return;
+function removeBox(){
+  if(active.length<=1)return;
   active.pop(); redSince.pop(); greenSince.pop();
   docRef.update({ boxes:active, redSince, greenSince });
+  buildGrid();
 }
 function resetAll(){
   const now=Date.now();
@@ -217,6 +226,7 @@ function resetAll(){
   greenSince=Array(active.length).fill(now);
   docRef.update({ boxes:active, redSince, greenSince });
 }
+
 function changeCounter(a){ docRef.update({ value: firebase.firestore.FieldValue.increment(a) }); }
 function manualChange(a){ changeCounter(a); }
 function resetCounter(){ totalTime=0; totalCount=0; docRef.update({ value:0, totalTime:0, totalCount:0 }); }
@@ -268,6 +278,7 @@ docRef.onSnapshot(doc=>{
     greenSince=d.greenSince||Array(active.length).fill(Date.now());
     totalTime=d.totalTime||0; totalCount=d.totalCount||0;
     document.getElementById("count").innerText=d.value||0;
+    buildGrid();
     draw();
   }
 });
