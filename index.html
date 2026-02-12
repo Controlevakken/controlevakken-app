@@ -18,15 +18,18 @@ html,body{
   color:#000;
 }
 
-/* AVOND */
+/* VOLLEDIGE AVONDMODUS */
 body.dark{
   background:#000;
   color:#fff;
 }
+body.dark .app{
+  background:#000;
+}
 body.dark button{
-  background:#222;
+  background:#1f1f1f;
   color:#fff;
-  border:1px solid #555;
+  border:1px solid #444;
 }
 
 /* APP */
@@ -34,7 +37,7 @@ body.dark button{
   height:100%;
   display:flex;
   flex-direction:column;
-  padding:10px;
+  padding:12px;
   box-sizing:border-box;
   text-align:center;
 }
@@ -62,7 +65,10 @@ body.dark #longestFree{
 }
 
 /* GRID */
-.middle{flex:1;display:flex;}
+.middle{
+  flex:1;
+  display:flex;
+}
 .grid{
   width:100%;
   height:100%;
@@ -73,7 +79,7 @@ body.dark #longestFree{
 @media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr);}}
 @media(min-width:901px){.grid{grid-template-columns:repeat(4,1fr);}}
 
-/* BOXEN */
+/* VAKKEN */
 .box{
   aspect-ratio:1/1;
   border-radius:16px;
@@ -91,7 +97,7 @@ body.dark #longestFree{
   background:#15803d !important;
 }
 
-/* GELE RAND (zoals origineel) */
+/* GELE RAND */
 .box.highlight{
   border:6px solid #facc15;
   box-shadow:0 0 20px rgba(250,204,21,1),
@@ -118,16 +124,25 @@ button{
 <div class="app">
 
 <div id="advice" class="advice more">MEER TOEVOER</div>
-<div id="longestFree">Langst vrij → —</div>
 
 <h2>Controlevakken</h2>
+
+<div id="longestFree">Langst vrij → —</div>
+
+<!-- BOVENSTE KNOPPEN TERUG -->
+<div>
+  <button onclick="addBox()">+ Vak</button>
+  <button onclick="removeBox()">- Vak</button>
+  <button onclick="resetAll()">Reset vakken</button>
+</div>
 
 <div class="middle">
 <div id="grid" class="grid"></div>
 </div>
 
 <div>
-<p>Gemiddelde duur controle: <span id="avg">0:00</span></p>
+<p><b>Gemiddelde duur controle:</b> <span id="avg">0:00</span></p>
+
 <p>Aantal vtg gecontroleerd: <b id="count">0</b></p>
 
 <button onclick="manualChange(1)">+</button>
@@ -198,8 +213,7 @@ function draw(){
     hi>=0?`Langst vrij → Vak ${hi+1}`:"Langst vrij → —";
 
   document.querySelectorAll(".box").forEach((b,i)=>{
-    b.classList.remove("priority");
-    b.classList.remove("highlight");
+    b.classList.remove("priority","highlight");
 
     const r=active[i];
     b.style.background=r?"red":"green";
