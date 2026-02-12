@@ -31,37 +31,48 @@ body.dark button{
   color:#fff;
   border:1px solid #444;
 }
+body.dark #longestFree{
+  background:#1f2933;
+}
 
 /* APP */
 .app{
-  height:100%;
+  min-height:100vh;
   display:flex;
   flex-direction:column;
-  padding:12px;
+  padding:8px;
   box-sizing:border-box;
   text-align:center;
 }
 
-/* ADVIES */
+/* ADVIESBALK GROTER */
 .advice{
   font-weight:900;
-  padding:8px;
-  border-radius:10px;
-  margin-bottom:6px;
+  padding:14px;
+  border-radius:8px;
+  margin-bottom:4px;
+  font-size:clamp(20px,4vw,30px);
+  letter-spacing:1px;
 }
 .advice.more{ background:#16a34a; color:#fff; }
 .advice.less{ background:#dc2626; color:#fff; }
 
-/* LANGST VRIJ */
+/* TITEL & BOVENSTE BLOK COMPACT */
+h2{
+  margin:4px 0 2px 0;
+}
 #longestFree{
-  margin:0 0 6px 0;
+  margin:0 0 4px 0;
   padding:8px;
-  border-radius:10px;
+  border-radius:8px;
   background:#e5e7eb;
   font-weight:900;
 }
-body.dark #longestFree{
-  background:#1f2933;
+.top-buttons{
+  margin-bottom:6px;
+}
+.top-buttons button{
+  margin:2px;
 }
 
 /* GRID */
@@ -129,8 +140,7 @@ button{
 
 <div id="longestFree">Langst vrij → —</div>
 
-<!-- BOVENSTE KNOPPEN TERUG -->
-<div>
+<div class="top-buttons">
   <button onclick="addBox()">+ Vak</button>
   <button onclick="removeBox()">- Vak</button>
   <button onclick="resetAll()">Reset vakken</button>
@@ -142,7 +152,6 @@ button{
 
 <div>
 <p><b>Gemiddelde duur controle:</b> <span id="avg">0:00</span></p>
-
 <p>Aantal vtg gecontroleerd: <b id="count">0</b></p>
 
 <button onclick="manualChange(1)">+</button>
