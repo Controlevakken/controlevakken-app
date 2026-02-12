@@ -13,17 +13,16 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
-html, body {
+html, body{
   width:100%;
   height:100%;
   margin:0;
-  overscroll-behavior: contain;
+  overscroll-behavior:contain;
 }
-
-body {
+body{
   font-family:Arial;
   background:#f3f4f6;
-  touch-action: manipulation;
+  touch-action:manipulation;
 }
 
 .app{
@@ -60,11 +59,9 @@ body {
 .advice.more{ background:#16a34a; color:#fff; }
 .advice.less{ background:#dc2626; color:#fff; }
 
-/* Middle vult resterende hoogte */
 .middle{
   flex:1;
   display:flex;
-  align-items:stretch;
 }
 
 /* RESPONSIVE GRID */
@@ -73,32 +70,21 @@ body {
   height:100%;
   display:grid;
   gap:12px;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns:repeat(3,1fr);
 }
 
-/* Telefoon */
-@media (max-width: 600px){
-  .grid{
-    grid-template-columns: repeat(2, 1fr);
-  }
+@media (max-width:600px){
+  .grid{ grid-template-columns:repeat(2,1fr); }
 }
-
-/* Tablet portrait */
-@media (min-width: 601px) and (max-width: 900px){
-  .grid{
-    grid-template-columns: repeat(3, 1fr);
-  }
+@media (min-width:601px) and (max-width:900px){
+  .grid{ grid-template-columns:repeat(3,1fr); }
 }
-
-/* Tablet landscape / groot */
-@media (min-width: 901px){
-  .grid{
-    grid-template-columns: repeat(4, 1fr);
-  }
+@media (min-width:901px){
+  .grid{ grid-template-columns:repeat(4,1fr); }
 }
 
 .box{
-  aspect-ratio:1 / 1;
+  aspect-ratio:1/1;
   border-radius:16px;
   color:white;
   font-size:clamp(20px,3vw,32px);
@@ -107,14 +93,14 @@ body {
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  text-align:center;
   user-select:none;
-  -webkit-tap-highlight-color: transparent;
+  -webkit-tap-highlight-color:transparent;
 }
 
 .box.highlight{
   border:6px solid #facc15;
-  box-shadow:0 0 20px rgba(250,204,21,1), inset 0 0 10px rgba(250,204,21,0.8);
+  box-shadow:0 0 20px rgba(250,204,21,1),
+             inset 0 0 10px rgba(250,204,21,.8);
   animation:pulse 1.2s infinite;
 }
 
@@ -146,7 +132,9 @@ button{
 
   <div>
     <h2>Controlevakken</h2>
-    <div id="longestFree" style="font-weight:bold; margin-bottom:6px;">Langst vrij: —</div>
+    <div id="longestFree" style="font-weight:bold;margin-bottom:6px;">
+      Langst vrij: —
+    </div>
     <button onclick="addBox()">+ Vak</button>
     <button onclick="removeBox()">- Vak</button>
     <button onclick="resetAll()">Reset vakken</button>
@@ -173,10 +161,154 @@ button{
   </div>
 </div>
 
-<!-- JS is ongewijzigd -->
 <script>
-/* jouw bestaande JS blijft exact hetzelfde */
-</script>
+const firebaseConfig = {
+  apiKey: "AIzaSyB5ZIsNVDFoQ2rtb7nysrs-vSFikz-AvbM",
+  authDomain: "controlevakken-teller.firebaseapp.com",
+  projectId: "controlevakken-teller",
+  storageBucket: "controlevakken-teller.firebasestorage.app",
+  messagingSenderId: "507012510405",
+  appId: "1:507012510405:web:88d4817f6658e94feb76ac"
+};
 
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const docRef = db.collection("counter").doc("main");
+
+const BASE = 6;
+const FULL_RATIO = 0.75;
+const MIN_VALID_RED = 10000;
+
+let active=[], redSince=[], greenSince=[];
+let totalTime=0, totalCount=0;
+let startTime=Date.now();
+let adviceHistory=[];
+
+function buildGrid(){
+  const grid=document.getElementById("grid");
+  grid.innerHTML="";
+  active.forEach((_,i)=>{
+    const b=document.createElement("div");
+    b.className="box";
+    b.onclick=()=>toggle(i);
+    grid.appendChild(b);
+  });
+}
+
+function draw(){
+  let redCount=0, maxGreen=-1, hi=-1;
+
+  active.forEach((isRed,i)=>{
+    if(isRed) redCount++;
+    if(!isRed && greenSince[i]){
+      const t=Date.now()-greenSince[i];
+      if(t>maxGreen){ maxGreen=t; hi=i; }
+    }
+  });
+
+  const advice = (redCount/active.length>=FULL_RATIO)
+    ? "MINDER TOEVOER"
+    : "MEER TOEVOER";
+
+  const a=document.getElementById("advice");
+  a.className="advice "+(advice==="MINDER TOEVOER"?"less":"more");
+  a.innerText=advice;
+
+  document.getElementById("longestFree").innerText =
+    hi>=0 ? `Langst vrij: Vak ${hi+1}` : "Langst vrij: —";
+
+  document.querySelectorAll(".box").forEach((b,i)=>{
+    const r=active[i];
+    b.style.background=r?"red":"green";
+    b.classList.toggle("highlight",i===hi);
+    let txt=i+1;
+    if(r && redSince[i]) txt+=`<div class="time">🔴 ${fmt(Date.now()-redSince[i])}</div>`;
+    if(!r && greenSince[i]) txt+=`<div class="time">🟢 ${fmt(Date.now()-greenSince[i])}</div>`;
+    b.innerHTML=txt;
+  });
+
+  document.getElementById("vol").style.display =
+    (active.length && active.every(v=>v)) ? "flex":"none";
+
+  document.getElementById("avg").innerText =
+    totalCount ? fmt(totalTime/totalCount) : "0:00";
+}
+
+function toggle(i){
+  const now=Date.now();
+  if(!active[i]){
+    redSince[i]=now;
+    greenSince[i]=null;
+  }else{
+    if(redSince[i]){
+      const d=now-redSince[i];
+      if(d>=MIN_VALID_RED){
+        docRef.update({ value:firebase.firestore.FieldValue.increment(1) });
+        totalTime+=d; totalCount++;
+      }
+    }
+    redSince[i]=null;
+    greenSince[i]=now;
+  }
+  active[i]=!active[i];
+  docRef.update({ boxes:active, redSince, greenSince, totalTime, totalCount });
+}
+
+function addBox(){
+  const now=Date.now();
+  active.push(false);
+  redSince.push(null);
+  greenSince.push(now);
+  docRef.set({ boxes:active, redSince, greenSince },{merge:true});
+  buildGrid();
+}
+function removeBox(){
+  if(active.length<=1) return;
+  active.pop(); redSince.pop(); greenSince.pop();
+  docRef.update({ boxes:active, redSince, greenSince });
+  buildGrid();
+}
+function resetAll(){
+  if(!confirm("Weet je het zeker?")) return;
+  const now=Date.now();
+  active.fill(false);
+  redSince.fill(null);
+  greenSince.fill(now);
+  docRef.update({ boxes:active, redSince, greenSince });
+}
+
+function manualChange(a){
+  docRef.update({ value:firebase.firestore.FieldValue.increment(a) });
+}
+function resetCounter(){
+  if(!confirm("Weet je het zeker?")) return;
+  totalTime=0; totalCount=0;
+  docRef.update({ value:0, totalTime:0, totalCount:0 });
+}
+
+function fmt(ms){
+  const s=Math.floor(ms/1000), m=Math.floor(s/60);
+  return `${m}:${(s%60).toString().padStart(2,"0")}`;
+}
+
+docRef.onSnapshot(doc=>{
+  if(doc.exists){
+    const d=doc.data();
+    active=d.boxes || Array(BASE).fill(false);
+    redSince=d.redSince || Array(active.length).fill(null);
+    greenSince=d.greenSince || Array(active.length).fill(Date.now());
+    totalTime=d.totalTime||0;
+    totalCount=d.totalCount||0;
+    document.getElementById("count").innerText=d.value||0;
+  }else{
+    active=Array(BASE).fill(false);
+    greenSince=Array(BASE).fill(Date.now());
+  }
+  buildGrid();
+  draw();
+});
+
+setInterval(draw,1000);
+</script>
 </body>
 </html>
