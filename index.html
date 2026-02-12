@@ -27,17 +27,11 @@ body{
 }
 
 /* AVOND MODUS */
-body.dark{
-  background:#000;
-  color:#fff;
-}
+body.dark{ background:#000; color:#fff; }
 body.dark h2,
 body.dark p,
-body.dark button{
-  color:#fff;
-}
+body.dark button{ color:#fff; }
 
-/* APP */
 .app{
   height:100%;
   display:flex;
@@ -73,32 +67,19 @@ body.dark button{
 .advice.more{ background:#16a34a; color:#fff; }
 .advice.less{ background:#dc2626; color:#fff; }
 
-/* INFO BLOK (HIËRARCHIE) */
-.info{
-  margin-bottom:6px;
-}
-.info h2{
-  margin:2px 0 4px 0;
-}
-
-/* LANGST VRIJ – VISUEEL STERK */
+/* INFO */
+.info h2{ margin:2px 0 4px 0; }
 #longestFree{
   margin:0 0 6px 0;
   padding:8px;
   border-radius:10px;
   background:#e5e7eb;
   font-weight:900;
-  font-size:clamp(18px,4vw,24px);
 }
-body.dark #longestFree{
-  background:#1f2933;
-}
+body.dark #longestFree{ background:#1f2933; }
 
 /* GRID */
-.middle{
-  flex:1;
-  display:flex;
-}
+.middle{ flex:1; display:flex; }
 .grid{
   width:100%;
   height:100%;
@@ -106,14 +87,10 @@ body.dark #longestFree{
   gap:12px;
   grid-template-columns:repeat(3,1fr);
 }
-@media (max-width:600px){
-  .grid{ grid-template-columns:repeat(2,1fr); }
-}
-@media (min-width:901px){
-  .grid{ grid-template-columns:repeat(4,1fr); }
-}
+@media(max-width:600px){ .grid{grid-template-columns:repeat(2,1fr);} }
+@media(min-width:901px){ .grid{grid-template-columns:repeat(4,1fr);} }
 
-/* VAKKEN – ONGEWIJZIGD */
+/* BOXEN */
 .box{
   aspect-ratio:1/1;
   border-radius:16px;
@@ -125,7 +102,11 @@ body.dark #longestFree{
   align-items:center;
   justify-content:center;
   user-select:none;
-  -webkit-tap-highlight-color:transparent;
+}
+
+/* langst vrij – andere groentint */
+.box.priority{
+  background:#22c55e !important;
 }
 
 .box.highlight{
@@ -134,24 +115,15 @@ body.dark #longestFree{
              inset 0 0 10px rgba(250,204,21,.8);
   animation:pulse 1.2s infinite;
 }
-
 @keyframes pulse{
   0%{box-shadow:0 0 10px rgba(250,204,21,.6);}
   50%{box-shadow:0 0 25px rgba(250,204,21,1);}
   100%{box-shadow:0 0 10px rgba(250,204,21,.6);}
 }
 
-.time{
-  font-size:clamp(12px,2vw,15px);
-  margin-top:4px;
-}
+.time{ font-size:14px; margin-top:4px; }
 
-/* BUTTONS */
-button{
-  padding:10px 14px;
-  font-size:16px;
-  margin:4px;
-}
+button{ padding:10px 14px; font-size:16px; margin:4px; }
 </style>
 </head>
 
@@ -177,10 +149,8 @@ button{
   <div>
     <p><b>Gemiddelde duur controle:</b> <span id="avg">0:00</span></p>
 
-    <p><b>automatische teller</b></p>
     <p>Aantal vtg gecontroleerd: <b id="count">0</b></p>
 
-    <p><b>handmatige teller</b></p>
     <button onclick="manualChange(1)">+</button>
     <button onclick="manualChange(-1)">-</button>
 
@@ -197,7 +167,7 @@ function toggleTheme(){
   document.body.classList.toggle("dark");
 }
 
-/* === BESTAANDE FUNCTIONALITEIT – ONGEWIJZIGD === */
+/* FIREBASE */
 const firebaseConfig = {
   apiKey: "AIzaSyB5ZIsNVDFoQ2rtb7nysrs-vSFikz-AvbM",
   authDomain: "controlevakken-teller.firebaseapp.com",
@@ -206,57 +176,50 @@ const firebaseConfig = {
   messagingSenderId: "507012510405",
   appId: "1:507012510405:web:88d4817f6658e94feb76ac"
 };
-
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const docRef = db.collection("counter").doc("main");
+const db=firebase.firestore();
+const docRef=db.collection("counter").doc("main");
 
-const BASE = 6;
-const FULL_RATIO = 0.75;
-const MIN_VALID_RED = 10000;
+const BASE=6, FULL_RATIO=0.75, MIN_VALID_RED=10000;
 
 let active=[], redSince=[], greenSince=[];
+let vakStart=[], vakVehicles=[];
 let totalTime=0, totalCount=0;
 let startTime=Date.now();
-let adviceHistory=[];
 
+/* GRID */
 function buildGrid(){
-  const grid=document.getElementById("grid");
-  grid.innerHTML="";
+  const g=document.getElementById("grid");
+  g.innerHTML="";
   active.forEach((_,i)=>{
     const b=document.createElement("div");
     b.className="box";
     b.onclick=()=>toggle(i);
-    grid.appendChild(b);
+    g.appendChild(b);
   });
 }
 
 function draw(){
-  let redCount=0, maxGreen=-1, hi=-1;
-
-  active.forEach((isRed,i)=>{
-    if(isRed) redCount++;
-    if(!isRed && greenSince[i]){
+  let red=0, max=-1, hi=-1;
+  active.forEach((r,i)=>{
+    if(r) red++;
+    if(!r && greenSince[i]){
       const t=Date.now()-greenSince[i];
-      if(t>maxGreen){ maxGreen=t; hi=i; }
+      if(t>max){max=t;hi=i;}
     }
   });
 
-  const advice = (redCount/active.length>=FULL_RATIO)
-    ? "MINDER TOEVOER"
-    : "MEER TOEVOER";
-
-  const a=document.getElementById("advice");
-  a.className="advice "+(advice==="MINDER TOEVOER"?"less":"more");
-  a.innerText=advice;
+  document.getElementById("advice").innerText =
+    red/active.length>=FULL_RATIO?"MINDER TOEVOER":"MEER TOEVOER";
 
   document.getElementById("longestFree").innerText =
-    hi>=0 ? `Langst vrij → Vak ${hi+1}` : "Langst vrij → —";
+    hi>=0?`Langst vrij → Vak ${hi+1}`:"Langst vrij → —";
 
   document.querySelectorAll(".box").forEach((b,i)=>{
+    b.classList.remove("priority");
     const r=active[i];
     b.style.background=r?"red":"green";
-    b.classList.toggle("highlight",i===hi);
+    if(!r && i===hi) b.classList.add("priority");
     let txt=i+1;
     if(r && redSince[i]) txt+=`<div class="time">🔴 ${fmt(Date.now()-redSince[i])}</div>`;
     if(!r && greenSince[i]) txt+=`<div class="time">🟢 ${fmt(Date.now()-greenSince[i])}</div>`;
@@ -264,10 +227,10 @@ function draw(){
   });
 
   document.getElementById("vol").style.display =
-    (active.length && active.every(v=>v)) ? "flex":"none";
+    (active.length && active.every(v=>v))?"flex":"none";
 
   document.getElementById("avg").innerText =
-    totalCount ? fmt(totalTime/totalCount) : "0:00";
+    totalCount?fmt(totalTime/totalCount):"0:00";
 }
 
 function toggle(i){
@@ -279,47 +242,49 @@ function toggle(i){
     if(redSince[i]){
       const d=now-redSince[i];
       if(d>=MIN_VALID_RED){
-        docRef.update({ value:firebase.firestore.FieldValue.increment(1) });
+        vakVehicles[i]++;
         totalTime+=d; totalCount++;
+        docRef.update({ value:firebase.firestore.FieldValue.increment(1) });
       }
     }
     redSince[i]=null;
     greenSince[i]=now;
   }
   active[i]=!active[i];
-  docRef.update({ boxes:active, redSince, greenSince, totalTime, totalCount });
+  docRef.update({ boxes:active, redSince, greenSince, vakStart, vakVehicles, totalTime, totalCount });
 }
 
-function addBox(){
-  const now=Date.now();
-  active.push(false);
-  redSince.push(null);
-  greenSince.push(now);
-  docRef.set({ boxes:active, redSince, greenSince },{merge:true});
-  buildGrid();
-}
-function removeBox(){
-  if(active.length<=1) return;
-  active.pop(); redSince.pop(); greenSince.pop();
-  docRef.update({ boxes:active, redSince, greenSince });
-  buildGrid();
-}
-function resetAll(){
-  if(!confirm("Weet je het zeker?")) return;
-  const now=Date.now();
-  active.fill(false);
-  redSince.fill(null);
-  greenSince.fill(now);
-  docRef.update({ boxes:active, redSince, greenSince });
-}
-
-function manualChange(a){
-  docRef.update({ value:firebase.firestore.FieldValue.increment(a) });
-}
 function resetCounter(){
   if(!confirm("Weet je het zeker?")) return;
+  startTime=Date.now();
+  vakStart=active.map(()=>startTime);
+  vakVehicles=active.map(()=>0);
   totalTime=0; totalCount=0;
-  docRef.update({ value:0, totalTime:0, totalCount:0 });
+  docRef.update({ value:0, startTime, vakStart, vakVehicles, totalTime, totalCount });
+}
+
+function downloadReport(){
+  const end=new Date();
+  let details="";
+  active.forEach((_,i)=>{
+    details+=`Vak ${i+1}:
+  Start: ${new Date(vakStart[i]).toLocaleString()}
+  Eind: ${end.toLocaleString()}
+  Voertuigen: ${vakVehicles[i]}\n\n`;
+  });
+
+  const txt=
+`LOGBOEK VERKEERSCONTROLE
+Start: ${new Date(startTime).toLocaleString()}
+Einde: ${end.toLocaleString()}
+
+${details}`;
+
+  const blob=new Blob([txt],{type:"text/plain"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`logboek_${end.toISOString().slice(0,19).replace(/[:T]/g,"-")}.txt`;
+  a.click();
 }
 
 function fmt(ms){
@@ -330,15 +295,14 @@ function fmt(ms){
 docRef.onSnapshot(doc=>{
   if(doc.exists){
     const d=doc.data();
-    active=d.boxes || Array(BASE).fill(false);
-    redSince=d.redSince || Array(active.length).fill(null);
-    greenSince=d.greenSince || Array(active.length).fill(Date.now());
+    active=d.boxes||Array(BASE).fill(false);
+    redSince=d.redSince||Array(active.length).fill(null);
+    greenSince=d.greenSince||Array(active.length).fill(Date.now());
+    vakStart=d.vakStart||Array(active.length).fill(Date.now());
+    vakVehicles=d.vakVehicles||Array(active.length).fill(0);
     totalTime=d.totalTime||0;
     totalCount=d.totalCount||0;
     document.getElementById("count").innerText=d.value||0;
-  }else{
-    active=Array(BASE).fill(false);
-    greenSince=Array(BASE).fill(Date.now());
   }
   buildGrid();
   draw();
