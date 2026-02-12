@@ -5,33 +5,31 @@
 <title>Controlevakken</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
-
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
-html, body{
+html,body{
   width:100%;
   height:100%;
   margin:0;
-  overscroll-behavior:contain;
-}
-body{
   font-family:Arial;
   background:#f3f4f6;
   color:#000;
-  touch-action:manipulation;
 }
 
-/* AVOND MODUS */
-body.dark{ background:#000; color:#fff; }
-body.dark h2,
-body.dark p,
-body.dark button{ color:#fff; }
+/* AVOND */
+body.dark{
+  background:#000;
+  color:#fff;
+}
+body.dark button{
+  background:#222;
+  color:#fff;
+  border:1px solid #555;
+}
 
+/* APP */
 .app{
   height:100%;
   display:flex;
@@ -41,34 +39,17 @@ body.dark button{ color:#fff; }
   text-align:center;
 }
 
-/* VOL overlay */
-#vol{
-  position:fixed;
-  inset:0;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  font-size:clamp(48px,10vw,96px);
-  font-weight:900;
-  color:#c00;
-  background:rgba(255,255,255,0.55);
-  pointer-events:none;
-  z-index:9999;
-}
-
 /* ADVIES */
 .advice{
   font-weight:900;
   padding:8px;
   border-radius:10px;
   margin-bottom:6px;
-  font-size:clamp(16px,3.5vw,22px);
 }
 .advice.more{ background:#16a34a; color:#fff; }
 .advice.less{ background:#dc2626; color:#fff; }
 
-/* INFO */
-.info h2{ margin:2px 0 4px 0; }
+/* LANGST VRIJ */
 #longestFree{
   margin:0 0 6px 0;
   padding:8px;
@@ -76,10 +57,12 @@ body.dark button{ color:#fff; }
   background:#e5e7eb;
   font-weight:900;
 }
-body.dark #longestFree{ background:#1f2933; }
+body.dark #longestFree{
+  background:#1f2933;
+}
 
 /* GRID */
-.middle{ flex:1; display:flex; }
+.middle{flex:1;display:flex;}
 .grid{
   width:100%;
   height:100%;
@@ -87,8 +70,8 @@ body.dark #longestFree{ background:#1f2933; }
   gap:12px;
   grid-template-columns:repeat(3,1fr);
 }
-@media(max-width:600px){ .grid{grid-template-columns:repeat(2,1fr);} }
-@media(min-width:901px){ .grid{grid-template-columns:repeat(4,1fr);} }
+@media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr);}}
+@media(min-width:901px){.grid{grid-template-columns:repeat(4,1fr);}}
 
 /* BOXEN */
 .box{
@@ -101,14 +84,14 @@ body.dark #longestFree{ background:#1f2933; }
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  user-select:none;
 }
 
-/* langst vrij – andere groentint */
+/* DONKERDER GROEN VOOR PRIORITY */
 .box.priority{
-  background:#22c55e !important;
+  background:#15803d !important;
 }
 
+/* GELE RAND (zoals origineel) */
 .box.highlight{
   border:6px solid #facc15;
   box-shadow:0 0 20px rgba(250,204,21,1),
@@ -121,45 +104,42 @@ body.dark #longestFree{ background:#1f2933; }
   100%{box-shadow:0 0 10px rgba(250,204,21,.6);}
 }
 
-.time{ font-size:14px; margin-top:4px; }
+.time{font-size:14px;margin-top:4px;}
 
-button{ padding:10px 14px; font-size:16px; margin:4px; }
+button{
+  padding:10px 14px;
+  font-size:16px;
+  margin:4px;
+}
 </style>
 </head>
 
 <body>
-<div id="vol">VOL</div>
-
 <div class="app">
 
-  <div id="advice" class="advice more">MEER TOEVOER</div>
+<div id="advice" class="advice more">MEER TOEVOER</div>
+<div id="longestFree">Langst vrij → —</div>
 
-  <div class="info">
-    <h2>Controlevakken</h2>
-    <div id="longestFree">Langst vrij → —</div>
-    <button onclick="addBox()">+ Vak</button>
-    <button onclick="removeBox()">- Vak</button>
-    <button onclick="resetAll()">Reset vakken</button>
-  </div>
+<h2>Controlevakken</h2>
 
-  <div class="middle">
-    <div id="grid" class="grid"></div>
-  </div>
+<div class="middle">
+<div id="grid" class="grid"></div>
+</div>
 
-  <div>
-    <p><b>Gemiddelde duur controle:</b> <span id="avg">0:00</span></p>
+<div>
+<p>Gemiddelde duur controle: <span id="avg">0:00</span></p>
+<p>Aantal vtg gecontroleerd: <b id="count">0</b></p>
 
-    <p>Aantal vtg gecontroleerd: <b id="count">0</b></p>
+<button onclick="manualChange(1)">+</button>
+<button onclick="manualChange(-1)">-</button>
 
-    <button onclick="manualChange(1)">+</button>
-    <button onclick="manualChange(-1)">-</button>
+<div style="margin-top:8px;">
+<button onclick="toggleTheme()">Dag / Avond</button>
+<button onclick="resetCounter()">Reset teller</button>
+<button onclick="downloadReport()">Download eindrapport</button>
+</div>
+</div>
 
-    <div style="margin-top:8px;">
-      <button onclick="toggleTheme()">Dag / Avond</button>
-      <button onclick="resetCounter()">Reset teller</button>
-      <button onclick="downloadReport()">Download eindrapport</button>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -168,13 +148,13 @@ function toggleTheme(){
 }
 
 /* FIREBASE */
-const firebaseConfig = {
-  apiKey: "AIzaSyB5ZIsNVDFoQ2rtb7nysrs-vSFikz-AvbM",
-  authDomain: "controlevakken-teller.firebaseapp.com",
-  projectId: "controlevakken-teller",
-  storageBucket: "controlevakken-teller.firebasestorage.app",
-  messagingSenderId: "507012510405",
-  appId: "1:507012510405:web:88d4817f6658e94feb76ac"
+const firebaseConfig={
+  apiKey:"AIzaSyB5ZIsNVDFoQ2rtb7nysrs-vSFikz-AvbM",
+  authDomain:"controlevakken-teller.firebaseapp.com",
+  projectId:"controlevakken-teller",
+  storageBucket:"controlevakken-teller.firebasestorage.app",
+  messagingSenderId:"507012510405",
+  appId:"1:507012510405:web:88d4817f6658e94feb76ac"
 };
 firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
@@ -200,7 +180,7 @@ function buildGrid(){
 }
 
 function draw(){
-  let red=0, max=-1, hi=-1;
+  let red=0,max=-1,hi=-1;
   active.forEach((r,i)=>{
     if(r) red++;
     if(!r && greenSince[i]){
@@ -209,27 +189,33 @@ function draw(){
     }
   });
 
-  document.getElementById("advice").innerText =
-    red/active.length>=FULL_RATIO?"MINDER TOEVOER":"MEER TOEVOER";
+  const advice=(red/active.length>=FULL_RATIO)?"MINDER TOEVOER":"MEER TOEVOER";
+  const a=document.getElementById("advice");
+  a.className="advice "+(advice==="MINDER TOEVOER"?"less":"more");
+  a.innerText=advice;
 
-  document.getElementById("longestFree").innerText =
+  document.getElementById("longestFree").innerText=
     hi>=0?`Langst vrij → Vak ${hi+1}`:"Langst vrij → —";
 
   document.querySelectorAll(".box").forEach((b,i)=>{
     b.classList.remove("priority");
+    b.classList.remove("highlight");
+
     const r=active[i];
     b.style.background=r?"red":"green";
-    if(!r && i===hi) b.classList.add("priority");
+
+    if(!r && i===hi){
+      b.classList.add("priority");
+      b.classList.add("highlight");
+    }
+
     let txt=i+1;
     if(r && redSince[i]) txt+=`<div class="time">🔴 ${fmt(Date.now()-redSince[i])}</div>`;
     if(!r && greenSince[i]) txt+=`<div class="time">🟢 ${fmt(Date.now()-greenSince[i])}</div>`;
     b.innerHTML=txt;
   });
 
-  document.getElementById("vol").style.display =
-    (active.length && active.every(v=>v))?"flex":"none";
-
-  document.getElementById("avg").innerText =
+  document.getElementById("avg").innerText=
     totalCount?fmt(totalTime/totalCount):"0:00";
 }
 
@@ -254,8 +240,11 @@ function toggle(i){
   docRef.update({ boxes:active, redSince, greenSince, vakStart, vakVehicles, totalTime, totalCount });
 }
 
+function manualChange(a){
+  docRef.update({ value:firebase.firestore.FieldValue.increment(a) });
+}
+
 function resetCounter(){
-  if(!confirm("Weet je het zeker?")) return;
   startTime=Date.now();
   vakStart=active.map(()=>startTime);
   vakVehicles=active.map(()=>0);
@@ -268,9 +257,11 @@ function downloadReport(){
   let details="";
   active.forEach((_,i)=>{
     details+=`Vak ${i+1}:
-  Start: ${new Date(vakStart[i]).toLocaleString()}
-  Eind: ${end.toLocaleString()}
-  Voertuigen: ${vakVehicles[i]}\n\n`;
+Start: ${new Date(vakStart[i]).toLocaleString()}
+Eind: ${end.toLocaleString()}
+Voertuigen: ${vakVehicles[i]}
+
+`;
   });
 
   const txt=
