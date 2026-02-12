@@ -5,36 +5,18 @@
 <title>Controlevakken</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
-
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
-html, body{
-  width:100%;
-  height:100%;
-  margin:0;
-}
+html, body{height:100%;margin:0}
 body{
   font-family:Arial;
   background:#f3f4f6;
   color:#000;
 }
-
-/* AVONDMODUS */
-body.dark{
-  background:#000;
-  color:#fff;
-}
-body.dark h2,
-body.dark p,
-body.dark button,
-body.dark #longestFree{
-  color:#fff;
-}
+body.dark{background:#000;color:#fff}
+body.dark p, body.dark h2, body.dark button{color:#fff}
 
 .app{
   height:100%;
@@ -50,35 +32,23 @@ body.dark #longestFree{
   font-weight:900;
   padding:8px;
   border-radius:10px;
-  margin-bottom:6px;
-  font-size:clamp(16px,3.5vw,22px);
+  margin-bottom:4px;
 }
-.advice.more{ background:#16a34a; color:#fff; }
-.advice.less{ background:#dc2626; color:#fff; }
+.advice.more{background:#16a34a;color:#fff}
+.advice.less{background:#dc2626;color:#fff}
 
-/* LANGST VRIJ – HIGHLIGHT */
+/* LANGST VRIJ */
 #longestFree{
-  margin:4px 0 6px 0;
   padding:8px;
+  margin-bottom:4px;
   border-radius:10px;
   background:#e5e7eb;
   font-weight:900;
-  font-size:clamp(18px,4vw,24px);
 }
-body.dark #longestFree{
-  background:#1f2933;
-}
-
-/* TITEL BLOK */
-.top-controls h2{
-  margin:4px 0 4px 0;
-}
+body.dark #longestFree{background:#1f2933}
 
 /* GRID */
-.middle{
-  flex:1;
-  display:flex;
-}
+.middle{flex:1;display:flex}
 .grid{
   width:100%;
   height:100%;
@@ -86,42 +56,26 @@ body.dark #longestFree{
   gap:12px;
   grid-template-columns:repeat(3,1fr);
 }
-@media (max-width:600px){
-  .grid{ grid-template-columns:repeat(2,1fr); }
-}
-@media (min-width:901px){
-  .grid{ grid-template-columns:repeat(4,1fr); }
-}
+@media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:901px){.grid{grid-template-columns:repeat(4,1fr)}}
 
-/* VAKKEN – NIET AANGEPAST */
+/* VAKKEN (ONGEWJZIGD) */
 .box{
   aspect-ratio:1/1;
   border-radius:16px;
   color:white;
-  font-size:clamp(20px,3vw,32px);
+  font-size:28px;
   font-weight:bold;
   display:flex;
-  flex-direction:column;
   align-items:center;
   justify-content:center;
 }
-
 .box.highlight{
   border:6px solid #facc15;
   box-shadow:0 0 20px rgba(250,204,21,1);
 }
 
-.time{
-  font-size:14px;
-  margin-top:4px;
-}
-
-/* ONDERIN */
-button{
-  padding:10px 14px;
-  font-size:16px;
-  margin:4px;
-}
+button{margin:4px;padding:10px 14px;font-size:16px}
 </style>
 </head>
 
@@ -129,54 +83,48 @@ button{
 <div class="app">
 
   <div id="advice" class="advice more">MEER TOEVOER</div>
-
   <div id="longestFree">Langst vrij → —</div>
 
-  <div class="top-controls">
-    <h2>Controlevakken</h2>
-    <button onclick="addBox()">+ Vak</button>
-    <button onclick="removeBox()">- Vak</button>
-    <button onclick="resetAll()">Reset vakken</button>
-  </div>
+  <h2>Controlevakken</h2>
 
   <div class="middle">
     <div id="grid" class="grid"></div>
   </div>
 
   <div>
-    <p><b>Gemiddelde duur:</b> <span id="avg">0:00</span></p>
+    <p>Gemiddelde duur: <span id="avg">0:00</span></p>
     <p>Aantal voertuigen: <b id="count">0</b></p>
 
-    <button onclick="manualChange(1)">+</button>
-    <button onclick="manualChange(-1)">-</button>
-
-    <div style="margin-top:8px;">
-      <button onclick="toggleTheme()">Dag / Avond</button>
-      <button onclick="resetCounter()">Reset teller</button>
-      <button onclick="downloadReport()">Download eindrapport</button>
-    </div>
+    <button onclick="addBox()">+ Vak</button>
+    <button onclick="removeBox()">- Vak</button>
+    <button onclick="toggleTheme()">Dag / Avond</button>
   </div>
 </div>
 
 <script>
+/* FIREBASE – VOLLEDIG */
+const firebaseConfig = {
+  apiKey: "AIzaSyB5ZIsNVDFoQ2rtb7nysrs-vSFikz-AvbM",
+  authDomain: "controlevakken-teller.firebaseapp.com",
+  projectId: "controlevakken-teller",
+  storageBucket: "controlevakken-teller.firebasestorage.app",
+  messagingSenderId: "507012510405",
+  appId: "1:507012510405:web:88d4817f6658e94feb76ac"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const docRef = db.collection("counter").doc("main");
+
+const BASE=6, FULL_RATIO=0.75;
+let active=[], greenSince=[];
+
+/* THEMA */
 function toggleTheme(){
   document.body.classList.toggle("dark");
 }
 
-/* === BESTAANDE JS – ONGEWIJZIGD === */
-const firebaseConfig = {
-  apiKey: "AIzaSyB5ZIsNVDFoQ2rtb7nysrs-vSFikz-AvbM",
-  authDomain: "controlevakken-teller.firebaseapp.com",
-  projectId: "controlevakken-teller"
-};
-firebase.initializeApp(firebaseConfig);
-const db=firebase.firestore();
-const docRef=db.collection("counter").doc("main");
-
-const BASE=6, FULL_RATIO=0.75, MIN_VALID_RED=10000;
-let active=[], redSince=[], greenSince=[];
-let totalTime=0, totalCount=0;
-
+/* GRID */
 function buildGrid(){
   const g=document.getElementById("grid");
   g.innerHTML="";
@@ -189,7 +137,7 @@ function buildGrid(){
 }
 
 function draw(){
-  let red=0, max=-1, hi=-1;
+  let red=0,max=-1,hi=-1;
   active.forEach((r,i)=>{
     if(r) red++;
     if(!r && greenSince[i]){
@@ -199,51 +147,52 @@ function draw(){
   });
 
   document.getElementById("advice").innerText =
-    red/active.length>=FULL_RATIO ? "MINDER TOEVOER" : "MEER TOEVOER";
+    red/active.length>=FULL_RATIO?"MINDER TOEVOER":"MEER TOEVOER";
 
   document.getElementById("longestFree").innerText =
-    hi>=0 ? `Langst vrij → Vak ${hi+1}` : "Langst vrij → —";
+    hi>=0?`Langst vrij → Vak ${hi+1}`:"Langst vrij → —";
 
   document.querySelectorAll(".box").forEach((b,i)=>{
-    const r=active[i];
-    b.style.background=r?"red":"green";
+    b.style.background=active[i]?"red":"green";
     b.classList.toggle("highlight",i===hi);
-    b.innerHTML=i+1;
+    b.innerText=i+1;
   });
 }
 
 function toggle(i){
-  const now=Date.now();
   active[i]=!active[i];
-  if(active[i]) redSince[i]=now; else greenSince[i]=now;
-  docRef.update({boxes:active,redSince,greenSince});
+  greenSince[i]=Date.now();
+  docRef.update({boxes:active,greenSince});
 }
 
 function addBox(){
   active.push(false);
-  redSince.push(null);
   greenSince.push(Date.now());
-  buildGrid();
+  docRef.set({boxes:active,greenSince},{merge:true});
 }
+
 function removeBox(){
-  if(active.length<=1) return;
-  active.pop(); redSince.pop(); greenSince.pop();
+  if(active.length<=1)return;
+  active.pop();greenSince.pop();
+  docRef.update({boxes:active,greenSince});
+}
+
+/* 🔑 DIT WAS DE MISSENDE SCHAKEL */
+docRef.onSnapshot(doc=>{
+  if(doc.exists){
+    const d=doc.data();
+    active=d.boxes||Array(BASE).fill(false);
+    greenSince=d.greenSince||Array(active.length).fill(Date.now());
+  }else{
+    active=Array(BASE).fill(false);
+    greenSince=Array(BASE).fill(Date.now());
+    docRef.set({boxes:active,greenSince});
+  }
   buildGrid();
-}
-function resetAll(){
-  active.fill(false);
-  greenSince.fill(Date.now());
-}
-function manualChange(a){
-  docRef.update({value:firebase.firestore.FieldValue.increment(a)});
-}
-function resetCounter(){
-  totalTime=0; totalCount=0;
-}
+  draw();
+});
 
 setInterval(draw,1000);
-buildGrid();
 </script>
-
 </body>
 </html>
