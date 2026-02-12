@@ -18,7 +18,7 @@ html,body{
   color:#000;
 }
 
-/* VOLLEDIGE AVONDMODUS */
+/* AVONDMODUS */
 body.dark{
   background:#000;
   color:#fff;
@@ -45,7 +45,7 @@ body.dark #longestFree{
   text-align:center;
 }
 
-/* ADVIESBALK GROTER */
+/* ADVIES */
 .advice{
   font-weight:900;
   padding:14px;
@@ -57,10 +57,11 @@ body.dark #longestFree{
 .advice.more{ background:#16a34a; color:#fff; }
 .advice.less{ background:#dc2626; color:#fff; }
 
-/* TITEL & BOVENSTE BLOK COMPACT */
 h2{
   margin:4px 0 2px 0;
 }
+
+/* LANGST VRIJ */
 #longestFree{
   margin:0 0 4px 0;
   padding:8px;
@@ -68,6 +69,8 @@ h2{
   background:#e5e7eb;
   font-weight:900;
 }
+
+/* TOP BUTTONS */
 .top-buttons{
   margin-bottom:6px;
 }
@@ -103,7 +106,7 @@ h2{
   justify-content:center;
 }
 
-/* DONKERDER GROEN VOOR PRIORITY */
+/* PRIORITY DONKERDER GROEN */
 .box.priority{
   background:#15803d !important;
 }
@@ -121,7 +124,10 @@ h2{
   100%{box-shadow:0 0 10px rgba(250,204,21,.6);}
 }
 
-.time{font-size:14px;margin-top:4px;}
+.time{
+  font-size:14px;
+  margin-top:4px;
+}
 
 button{
   padding:10px 14px;
@@ -180,6 +186,7 @@ const firebaseConfig={
   messagingSenderId:"507012510405",
   appId:"1:507012510405:web:88d4817f6658e94feb76ac"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db=firebase.firestore();
 const docRef=db.collection("counter").doc("main");
@@ -252,7 +259,8 @@ function toggle(i){
       const d=now-redSince[i];
       if(d>=MIN_VALID_RED){
         vakVehicles[i]++;
-        totalTime+=d; totalCount++;
+        totalTime+=d;
+        totalCount++;
         docRef.update({ value:firebase.firestore.FieldValue.increment(1) });
       }
     }
@@ -263,6 +271,46 @@ function toggle(i){
   docRef.update({ boxes:active, redSince, greenSince, vakStart, vakVehicles, totalTime, totalCount });
 }
 
+/* ===== HERSTELDE KNOPPEN ===== */
+
+function addBox(){
+  const now=Date.now();
+
+  active.push(false);
+  redSince.push(null);
+  greenSince.push(now);
+  vakStart.push(startTime || now);
+  vakVehicles.push(0);
+
+  docRef.update({ boxes:active, redSince, greenSince, vakStart, vakVehicles });
+}
+
+function removeBox(){
+  if(active.length<=1) return;
+
+  active.pop();
+  redSince.pop();
+  greenSince.pop();
+  vakStart.pop();
+  vakVehicles.pop();
+
+  docRef.update({ boxes:active, redSince, greenSince, vakStart, vakVehicles });
+}
+
+function resetAll(){
+  if(!confirm("Weet je het zeker?")) return;
+
+  const now=Date.now();
+
+  active=active.map(()=>false);
+  redSince=redSince.map(()=>null);
+  greenSince=greenSince.map(()=>now);
+
+  docRef.update({ boxes:active, redSince, greenSince });
+}
+
+/* ===== EINDE HERSTEL ===== */
+
 function manualChange(a){
   docRef.update({ value:firebase.firestore.FieldValue.increment(a) });
 }
@@ -271,7 +319,9 @@ function resetCounter(){
   startTime=Date.now();
   vakStart=active.map(()=>startTime);
   vakVehicles=active.map(()=>0);
-  totalTime=0; totalCount=0;
+  totalTime=0;
+  totalCount=0;
+
   docRef.update({ value:0, startTime, vakStart, vakVehicles, totalTime, totalCount });
 }
 
